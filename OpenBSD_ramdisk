@@ -1,0 +1,43 @@
+#!/bin/bash
+SCRIPT=${0##*/}
+RCFILE=~/.${SCRIPT}.rc
+[ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+[ $# = 4 ] || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+CMD=$1
+HOST=$2
+REV=$3
+SIZE=$4
+SIZE=${SIZE:=2560m}
+AUTOMISC="$HOST -fstype=tmpfs,rw,size=$SIZE :tmpfs"
+RAMDISK=/misc/$HOST
+FILE=/home/ramdisk/$REV.$HOST.tar
+[ "$CMD" = on ] && {
+  [ -n "$STOP_CMDS" ] && $STOP_CMDS
+  egrep -q "^${AUTOMISC}$" /etc/auto.misc || { echo $AUTOMISC >> /etc/auto.misc; systemctl restart autofs; }
+  [ -f $FILE ] && tar xpf $FILE -C / || {
+    mkdir $RAMDISK/src
+    mkdir $RAMDISK/obj
+    mkdir $RAMDISK/xenocara
+    mkdir $RAMDISK/xobj
+  }
+  systemctl start nfs-kernel-server
+  exportfs -o fsid=0,rw,all_squash,anonuid=0,anongid=0 ${SSH_CLIENT%% *}:$RAMDISK
+  exit
+}
+[ "$CMD" = off ] && {
+  exportfs -au
+  systemctl stop nfs-kernel-server
+  rm -rf $RAMDISK/xobj/* $RAMDISK/obj/* $RAMDISK/src/*.patch.sig
+  tar cpf $FILE $RAMDISK/* 2>/dev/null
+  umount $RAMDISK
+  sed -i "/^$AUTOMISC/d" /etc/auto.misc
+  [ -n "$START_CMDS" ] && $START_CMDS
+  exit
+}
+[ "$CMD" = rm ] && {
+  exportfs -au
+  systemctl stop nfs-kernel-server
+  umount $RAMDISK
+  sed -i "/^$AUTOMISC/d" /etc/auto.misc
+  [ -n "$START_CMDS" ] && $START_CMDS
+}

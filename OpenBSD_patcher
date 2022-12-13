@@ -1,0 +1,130 @@
+#!/bin/ksh
+#########################################
+# TL;DR - A script for patching OpenBSD #
+#########################################
+SCRIPT=${0##*/}
+RCFILE=~/.${SCRIPT}.rc
+[ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+LOGFILE=/var/log/$SCRIPT
+DATE=$(date +%Y%m%d%S)
+PATCH_SCRIPT=/${SCRIPT}_${DATE}
+REV=$(uname -r)
+VER=$(IFS=.;for i in $REV; do echo -n $i;done;unset IFS)
+DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
+PATCHLIST=/usr/src/patches.list
+PATCHURL=http://ftp.openbsd.org/pub/OpenBSD/patches/${REV}.tar.gz
+STAGE_DIR=/misc/$(uname -n)
+
+#####################
+# Get source code.  #
+# Verify signature. #
+#####################
+f_getsrc() {
+	local VER=$1;shift
+	for ARCHIVE in $@; do
+		echo $ARCHIVE|fgrep -q / && DIR="$(echo $ARCHIVE|awk -F/ '{print $1}')" || DIR=""
+		cd /usr/$DIR
+		#ftp $DISTURL/${ARCHIVE##*/}.tar.gz || exit 1
+                echo Fetching $DISTURL/${ARCHIVE##*/}.tar.gz
+                ssh $STAGE_HOST curl $DISTURL/${ARCHIVE##*/}.tar.gz -o $STAGE_DIR/${ARCHIVE}.tar.gz
+		[ -f /usr/src/SHA256.sig ] || ( cd /usr/src;ftp $DISTURL/SHA256.sig )
+		signify -C -p /etc/signify/openbsd-$VER-base.pub -x /usr/src/SHA256.sig ${ARCHIVE##*/}.tar.gz || exit 1
+                echo Extracting ${ARCHIVE##*/}.tar.gz
+		ssh $STAGE_HOST tar xzf $STAGE_DIR/${ARCHIVE}.tar.gz -C $STAGE_DIR/$DIR
+		rm /usr/${ARCHIVE}.tar.gz
+		cd
+	done
+}
+
+###########################################################
+# Generate a script for patching and rebuilding /usr/src. #
+# Edit it. Run it. Send an email summary.                 #
+###########################################################
+f_update() {
+	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
+	cd /usr/src
+	touch $PATCHLIST
+
+	#######################################################################################
+	# Grab the latest patches tar ball in base64 format for usability within this script. #
+	#######################################################################################
+	B64="$(ftp -V -o - $PATCHURL | openssl enc -base64)"
+	PATCHES="$(echo "$B64" | openssl enc -base64 -d | tar tzf - | fgrep .sig | sort -n)"
+
+	###########################################################
+	# If there are any new patches, extract them in /usr/src. #
+	###########################################################
+	[ "$PATCHES" = "$(< $PATCHLIST)" ] || {
+		NEW_PATCHES="$(echo "$PATCHES" | fgrep -vx -f $PATCHLIST)"
+		[ "$(echo $NEW_PATCHES)" = "" ] && { echo Blank update; exit 1; }
+		echo "$B64" | openssl enc -base64 -d | pax -r -z -s '/.*\///p' $NEW_PATCHES 2>/dev/null
+
+		###############################################################################################
+		# Extract patch and build commands from the comments in the *.sig patch files, then run them. #
+		###############################################################################################
+		UPDATE_PATCH=$(cat <<-EOF
+			cd /usr/src
+			$(awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' *.patch.sig)
+			$(for PATCH in *.patch.sig; do
+				BUILDCMDS="$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH)"
+				TAG=$(echo "$BUILDCMDS" | gzip -c | openssl enc -base64)
+				echo "$TAGS" | fgrep -q "$TAG" || {
+					TAGS=$(echo "$TAGS$TAG")
+					echo "$BUILDCMDS"
+				}
+			done)
+		EOF
+		)
+
+		####################
+		# Patch and build. #
+		# Log everything.  #
+		# Email a summary. #
+		####################
+		echo "# $(date)" >> /var/log/$SCRIPT
+		echo "$UPDATE_PATCH" >> /var/log/$SCRIPT
+		echo "$UPDATE_PATCH" > $PATCH_SCRIPT
+		[ -t 0 ] && {
+			trap "{ rm $PATCH_SCRIPT *.patch.sig; exit 1; }" INT TERM
+			vi $PATCH_SCRIPT
+			echo -n "Run update script? (ENTER to continue or CTRL-C to abort)"
+			read
+			UPDATE_PATCH=$(< $PATCH_SCRIPT)
+			time eval "$UPDATE_PATCH" | tee -a $LOGFILE
+			rm $PATCH_SCRIPT
+		} || {
+			cat <<-EOF | mail -s "$SCRIPT: $(hostname) patches." $NOTIFY_EMAILS
+				The following patches are available for $(hostname):
+
+				$NEW_PATCHES
+
+				To apply them run ($(hostname):$PATCH_SCRIPT).
+			EOF
+		}
+	echo "$NEW_PATCHES" >> $PATCHLIST
+	cd
+	}
+}
+
+f_usage() {
+	echo "usage: $SCRIPT -i # download and extract src.tar.gz and sys.tar.gz"
+	echo "       $SCRIPT -p # download and extract ports.tar.gz"
+	echo "       $SCRIPT -x # download and extract xenocara.tar.gz"
+	echo "       $SCRIPT -u # generate patch updates for base"
+	echo "                            run interactively: edit first then compile"
+	echo "                            run non-interactively: compile then email a summary"
+	exit
+}
+
+[ -z "$1" ] && f_usage
+while getopts "ipxu" opt; do
+	case $opt in
+		i  ) { rm -rf /usr/src/*; f_getsrc $VER src/src src/sys; } ;;
+		p  ) { rm -rf /usr/ports; f_getsrc $VER ports; } ;;
+		x  ) { rm -rf /usr/xenocara/*; f_getsrc $VER xenocara/xenocara; } ;;
+		u  ) f_update ;;
+		\? ) f_usage;;
+		:  ) f_usage;;
+	esac
+done
+cd /

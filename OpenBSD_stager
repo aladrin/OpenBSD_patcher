@@ -1,0 +1,19 @@
+#!/bin/ksh
+SCRIPT=${0##*/}
+HOST=$(uname -n)
+REV=$(uname -r)
+SIZE=2560m
+STAGE_HOST=$1
+shift
+ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $SIZE && {
+  MOUNTS="/usr/src /usr/obj /usr/xenocara /usr/xobj"
+  for i in $MOUNTS; do
+    mount $i || { echo ${SCRIPT}: nfs mount of $i failed; exit 1; }
+  done
+  $@
+  sleep 2
+  for i in $MOUNTS; do
+    umount $i
+  done
+  ssh $STAGE_HOST OpenBSD_ramdisk off $HOST $REV $SIZE || echo ${SCRIPT}: $STAGE_HOST off script failed
+} || echo ${SCRIPT}: $STAGE_HOST on script failed

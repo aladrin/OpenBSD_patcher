@@ -1,0 +1,4 @@
+# Stop some services to save ram
+STOP_CMDS=""
+# Start them again when complete
+START_CMDS=""
