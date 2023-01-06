@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
-[ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+[ -f $RCFILE ] && . $RCFILE
 [ $# = 4 ] || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
 CMD=$1
 HOST=$2
@@ -10,7 +10,9 @@ SIZE=$4
 SIZE=${SIZE:=2560m}
 AUTOMISC="$HOST -fstype=tmpfs,rw,size=$SIZE :tmpfs"
 RAMDISK=/misc/$HOST
-FILE=/home/ramdisk/$REV.$HOST.tar
+REPO=${REPO:=/home/ramdisk}
+[ -d "$REPO" ] || mkdir -p "$REPO"
+FILE=$REPO/$REV.$HOST.tar
 [ "$CMD" = on ] && {
   [ -n "$STOP_CMDS" ] && $STOP_CMDS
   egrep -q "^${AUTOMISC}$" /etc/auto.misc || { echo $AUTOMISC >> /etc/auto.misc; systemctl restart autofs; }

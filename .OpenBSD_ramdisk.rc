@@ -2,3 +2,5 @@
 STOP_CMDS=""
 # Start them again when complete
 START_CMDS=""
+# Repository path to stage tars
+# REPO=/home/ramdisk
