@@ -7,7 +7,7 @@ CMD=$1
 HOST=$2
 REV=$3
 SIZE=$4
-SIZE=${SIZE:=2560m}
+SIZE=${SIZE:=4096m}
 AUTOMISC="$HOST -fstype=tmpfs,rw,size=$SIZE :tmpfs"
 RAMDISK=/misc/$HOST
 REPO=${REPO:=/home/ramdisk}
