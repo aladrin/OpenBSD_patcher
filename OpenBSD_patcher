@@ -4,7 +4,7 @@
 #########################################
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
-[ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+[ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: $RCFILE missing; exit 1; }
 LOGFILE=/var/log/$SCRIPT
 DATE=$(date +%Y%m%d%S)
 INSTALL_SCRIPT=/usr/src/install
