@@ -10,7 +10,7 @@ ARCH=$4
 SIZE=$5
 SIZE=${SIZE:=3072}
 AUTOMISC="$HOST -fstype=tmpfs,rw,size=${SIZE}m :tmpfs"
-RAMDISK=/misc/$HOST
+RAMDISK=/misc/$REV.$ARCH
 REPO=${REPO:=/home/ramdisk}
 [ -d "$REPO" ] || mkdir -p "$REPO"
 FILE=$REPO/$REV.$ARCH.tar
