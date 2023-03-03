@@ -10,7 +10,7 @@ mkdir -p /usr/xenocara
 ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $ARCH $SIZE && {
   MOUNTS="/usr/src /usr/obj /usr/xenocara /usr/xobj"
   for i in $MOUNTS; do
-    mount_nfs -T $STAGE_HOST:/misc/$(echo $i|sed "s/\/usr/$HOST/") $i || { echo ${SCRIPT}: nfs mount of $i failed; exit 1; }
+    mount_nfs -T $STAGE_HOST:/misc/$REV.$ARCH $i || { echo ${SCRIPT}: nfs mount of $i failed; exit 1; }
   done
   $@
   sleep 2
