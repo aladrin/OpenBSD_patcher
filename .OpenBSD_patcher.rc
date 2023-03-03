@@ -2,5 +2,3 @@
 DISTHOST=mirror.aarnet.edu.au
 # NFS host for staging the ramdisk
 STAGE_HOST=nfshost
-# Space delimited email addresses for notification if running non-interactively
-NOTIFY_EMAILS=""
