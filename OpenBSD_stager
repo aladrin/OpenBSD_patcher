@@ -2,11 +2,12 @@
 SCRIPT=${0##*/}
 HOST=$(uname -n)
 REV=$(uname -r)
+ARCH=$(uname -m)
 SIZE=3072
 STAGE_HOST=$1
 shift
 mkdir -p /usr/xenocara
-ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $SIZE && {
+ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $ARCH $SIZE && {
   MOUNTS="/usr/src /usr/obj /usr/xenocara /usr/xobj"
   for i in $MOUNTS; do
     mount_nfs -T $STAGE_HOST:/misc/$(echo $i|sed "s/\/usr/$HOST/") $i || { echo ${SCRIPT}: nfs mount of $i failed; exit 1; }
@@ -16,5 +17,5 @@ ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $SIZE && {
   for i in $MOUNTS; do
     umount $i
   done
-  ssh $STAGE_HOST OpenBSD_ramdisk off $HOST $REV $SIZE || echo ${SCRIPT}: $STAGE_HOST off script failed
+  ssh $STAGE_HOST OpenBSD_ramdisk off $HOST $REV $ARCH $SIZE || echo ${SCRIPT}: $STAGE_HOST off script failed
 } || echo ${SCRIPT}: $STAGE_HOST on script failed

@@ -6,13 +6,14 @@ RCFILE=~/.${SCRIPT}.rc
 CMD=$1
 HOST=$2
 REV=$3
-SIZE=$4
+ARCH=$4
+SIZE=$5
 SIZE=${SIZE:=3072}
 AUTOMISC="$HOST -fstype=tmpfs,rw,size=${SIZE}m :tmpfs"
 RAMDISK=/misc/$HOST
 REPO=${REPO:=/home/ramdisk}
 [ -d "$REPO" ] || mkdir -p "$REPO"
-FILE=$REPO/$REV.$HOST.tar
+FILE=$REPO/$REV.$ARCH.tar
 [ "$CMD" = on ] && {
   [ -n "$STOP_CMDS" ] && $STOP_CMDS
   egrep -q "^${AUTOMISC}$" /etc/auto.misc || { echo $AUTOMISC >> /etc/auto.misc; systemctl restart autofs; }
