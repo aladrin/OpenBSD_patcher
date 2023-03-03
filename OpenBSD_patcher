@@ -7,7 +7,7 @@ RCFILE=~/.${SCRIPT}.rc
 [ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
 LOGFILE=/var/log/$SCRIPT
 DATE=$(date +%Y%m%d%S)
-PATCH_SCRIPT=/${SCRIPT}_${DATE}
+INSTALL_SCRIPT=/usr/src/install
 REV=$(uname -r)
 VER=$(IFS=.;for i in $REV; do echo -n $i;done;unset IFS)
 DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
@@ -40,7 +40,7 @@ f_getsrc() {
 # Generate a script for patching and rebuilding /usr/src. #
 # Edit it. Run it. Send an email summary.                 #
 ###########################################################
-f_update() {
+f_patch_build() {
 	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
 	cd /usr/src
 	touch $PATCHLIST
@@ -62,7 +62,7 @@ f_update() {
 		###############################################################################################
 		# Extract patch and build commands from the comments in the *.sig patch files, then run them. #
 		###############################################################################################
-		UPDATE_PATCH=$(cat <<-EOF
+		PATCH_BUILD_INSTALL=$(cat <<-EOF
 			cd /usr/src
 			$(awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' *.patch.sig)
 			$(for PATCH in *.patch.sig; do
@@ -79,50 +79,27 @@ f_update() {
 		####################
 		# Patch and build. #
 		# Log everything.  #
-		# Email a summary. #
 		####################
-		echo "# $(date)" >> /var/log/$SCRIPT
-		echo "$UPDATE_PATCH" >> /var/log/$SCRIPT
-		echo "$UPDATE_PATCH" > $PATCH_SCRIPT
-		[ -t 0 ] && {
-			trap "{ rm $PATCH_SCRIPT *.patch.sig; exit 1; }" INT TERM
-			vi $PATCH_SCRIPT
-			echo -n "Run update script? (ENTER to continue or CTRL-C to abort)"
-			read
-			UPDATE_PATCH=$(< $PATCH_SCRIPT)
-			time eval "$UPDATE_PATCH" | tee -a $LOGFILE
-			rm $PATCH_SCRIPT
-		} || {
-			cat <<-EOF | mail -s "$SCRIPT: $(hostname) patches." $NOTIFY_EMAILS
-				The following patches are available for $(hostname):
-
-				$NEW_PATCHES
-
-				To apply them run ($(hostname):$PATCH_SCRIPT).
-			EOF
-		}
-	echo "$NEW_PATCHES" >> $PATCHLIST
-	cd
+		echo "# $(date)" >> $LOGFILE
+		PATCH_BUILD="$(echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$')"
+		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$|make -f Makefile.bsd-wrapper build$' > $INSTALL_SCRIPT
+		time eval "$PATCH_BUILD" | tee -a $LOGFILE
+		echo "$NEW_PATCHES" >> $PATCHLIST
+		cd
 	}
 }
 
 f_usage() {
-	echo "usage: $SCRIPT -i # download and extract src.tar.gz and sys.tar.gz"
-	echo "       $SCRIPT -p # download and extract ports.tar.gz"
-	echo "       $SCRIPT -x # download and extract xenocara.tar.gz"
-	echo "       $SCRIPT -u # generate patch updates for base"
-	echo "                            run interactively: edit first then compile"
-	echo "                            run non-interactively: compile then email a summary"
+	echo "usage: $SCRIPT -p # patch and build"
+	echo "       $SCRIPT -i # install (run $INSTALL_SCRIPT)"
 	exit
 }
 
 [ -z "$1" ] && f_usage
-while getopts "ipxu" opt; do
+while getopts "ip" opt; do
 	case $opt in
-		i  ) { rm -rf /usr/src/*; f_getsrc $VER src/src src/sys; } ;;
-		p  ) { rm -rf /usr/ports; f_getsrc $VER ports; } ;;
-		x  ) { rm -rf /usr/xenocara/*; f_getsrc $VER xenocara/xenocara; } ;;
-		u  ) f_update ;;
+		p  ) f_patch_build;;
+		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>&1 >> $LOGFILE ;;
 		\? ) f_usage;;
 		:  ) f_usage;;
 	esac
