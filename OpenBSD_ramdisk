@@ -2,7 +2,7 @@
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
 [ -f $RCFILE ] && . $RCFILE
-[ $# = 5 ] || { echo ${SCRIPT}: 4 args must be supplied; exit 1; }
+[ $# = 5 ] || { echo ${SCRIPT}: 5 args must be supplied; exit 1; }
 CMD=$1
 HOST=$2
 REV=$3
