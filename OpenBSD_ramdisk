@@ -7,8 +7,8 @@ CMD=$1
 HOST=$2
 REV=$3
 SIZE=$4
-SIZE=${SIZE:=4096m}
-AUTOMISC="$HOST -fstype=tmpfs,rw,size=$SIZE :tmpfs"
+SIZE=${SIZE:=3072}
+AUTOMISC="$HOST -fstype=tmpfs,rw,size=${SIZE}m :tmpfs"
 RAMDISK=/misc/$HOST
 REPO=${REPO:=/home/ramdisk}
 [ -d "$REPO" ] || mkdir -p "$REPO"

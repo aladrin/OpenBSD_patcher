@@ -2,7 +2,7 @@
 SCRIPT=${0##*/}
 HOST=$(uname -n)
 REV=$(uname -r)
-SIZE=2560m
+SIZE=3072
 STAGE_HOST=$1
 shift
 mkdir -p /usr/xenocara
