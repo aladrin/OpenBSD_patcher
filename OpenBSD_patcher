@@ -9,6 +9,7 @@ LOGFILE=/var/log/$SCRIPT.log
 ERRFILE=/var/log/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
+BUILD_SCRIPT=/usr/src/$SCRIPT.build
 INSTALL_SCRIPT=/usr/src/$SCRIPT.install
 XINSTALL_SCRIPT=/usr/src/$SCRIPT.xinstall
 REV=$(uname -r)
@@ -45,7 +46,7 @@ f_getsrc() {
 ###########################################################
 f_patch_build() {
 	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
-	cd /usr/src
+	pushd /usr/src
 	touch $PATCHLIST
 
 	#######################################################################################
@@ -85,12 +86,12 @@ f_patch_build() {
 		####################
 		echo "# $DATE_HUMAN" >> $LOGFILE
 		echo "# $DATE_HUMAN" >> $ERRFILE
-		PATCH_BUILD="$(echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$')"
+		echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$' > $BUILD_SCRIPT
 		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$'|grep -v ' cd /usr/xenocara' > $INSTALL_SCRIPT
 		echo "$PATCH_BUILD_INSTALL"|grep -E ' cd /usr/xenocara|make -f Makefile.bsd-wrapper build$' > $XINSTALL_SCRIPT
-		time eval "$PATCH_BUILD" 2>> $ERRFILE 1>> $LOGFILE
+		time . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE
 		echo "$NEW_PATCHES" >> $PATCHLIST
-		cd
+		popd
 	}
 }
 
@@ -111,4 +112,3 @@ while getopts "ip" opt; do
 		:  ) f_usage;;
 	esac
 done
-cd /
