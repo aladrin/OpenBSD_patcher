@@ -8,7 +8,8 @@ RCFILE=~/.${SCRIPT}.rc
 LOGFILE=/var/log/$SCRIPT.log
 ERRFILE=/var/log/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
-INSTALL_SCRIPT=/usr/src/install
+INSTALL_SCRIPT=/usr/src/$SCRIPT.install
+XINSTALL_SCRIPT=/usr/src/$SCRIPT.xinstall
 REV=$(uname -r)
 VER=$(IFS=.;for i in $REV; do echo -n $i;done;unset IFS)
 DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
@@ -84,7 +85,8 @@ f_patch_build() {
 		echo "# $DATE" >> $LOGFILE
 		echo "# $DATE" >> $ERRFILE
 		PATCH_BUILD="$(echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$')"
-		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$|make -f Makefile.bsd-wrapper build$' > $INSTALL_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$'|grep -v ' cd /usr/xenocara' > $INSTALL_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E ' cd /usr/xenocara|make -f Makefile.bsd-wrapper build$' > $XINSTALL_SCRIPT
 		time eval "$PATCH_BUILD" 2>> $ERRFILE 1>> $LOGFILE
 		echo "$NEW_PATCHES" >> $PATCHLIST
 		cd
@@ -94,6 +96,7 @@ f_patch_build() {
 f_usage() {
 	echo "usage: $SCRIPT -p # patch and build"
 	echo "       $SCRIPT -i # install (run $INSTALL_SCRIPT)"
+	echo "       $SCRIPT -x # install (run $XINSTALL_SCRIPT)"
 	exit
 }
 
@@ -101,7 +104,8 @@ f_usage() {
 while getopts "ip" opt; do
 	case $opt in
 		p  ) f_patch_build;;
-		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>&1 >> $LOGFILE ;;
+		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
+		x  ) [ -f $XINSTALL_SCRIPT ] && . $XINSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
 		\? ) f_usage;;
 		:  ) f_usage;;
 	esac
