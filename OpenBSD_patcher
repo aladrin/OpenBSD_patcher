@@ -5,7 +5,8 @@
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
 [ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: $RCFILE missing; exit 1; }
-LOGFILE=/var/log/$SCRIPT
+LOGFILE=/var/log/$SCRIPT.log
+ERRFILE=/var/log/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 INSTALL_SCRIPT=/usr/src/install
 REV=$(uname -r)
@@ -80,10 +81,11 @@ f_patch_build() {
 		# Patch and build. #
 		# Log everything.  #
 		####################
-		echo "# $(date)" >> $LOGFILE
+		echo "# $DATE" >> $LOGFILE
+		echo "# $DATE" >> $ERRFILE
 		PATCH_BUILD="$(echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$')"
 		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$|make -f Makefile.bsd-wrapper build$' > $INSTALL_SCRIPT
-		time eval "$PATCH_BUILD" | tee -a $LOGFILE
+		time eval "$PATCH_BUILD" 2>> $ERRFILE 1>> $LOGFILE
 		echo "$NEW_PATCHES" >> $PATCHLIST
 		cd
 	}
