@@ -46,7 +46,7 @@ f_getsrc() {
 ###########################################################
 f_patch_build() {
 	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
-	pushd /usr/src
+	cd /usr/src
 	touch $PATCHLIST
 
 	#######################################################################################
@@ -91,7 +91,7 @@ f_patch_build() {
 		echo "$PATCH_BUILD_INSTALL"|grep -E ' cd /usr/xenocara|make -f Makefile.bsd-wrapper build$' > $XINSTALL_SCRIPT
 		time . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE
 		echo "$NEW_PATCHES" >> $PATCHLIST
-		popd
+		cd
 	}
 }
 
