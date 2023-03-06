@@ -70,7 +70,7 @@ f_patch_build() {
 			cd /usr/src
 			$(awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' *.patch.sig)
 			$(for PATCH in *.patch.sig; do
-				BUILDCMDS="$(awk '/^And then/{f=1;next}/^Index:/{f=0}f'|sed -e 's/^ *//' -e 's/ *$//' $PATCH)"
+				BUILDCMDS="$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|sed -e 's/^ *//' -e 's/ *$//')"
 				TAG=$(echo "$BUILDCMDS" | gzip -c | openssl enc -base64)
 				echo "$TAGS" | fgrep -q "$TAG" || {
 					TAGS=$(echo "$TAGS$TAG")
