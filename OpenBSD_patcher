@@ -86,9 +86,9 @@ f_patch_build() {
 		####################
 		echo "# $DATE_HUMAN" >> $LOGFILE
 		echo "# $DATE_HUMAN" >> $ERRFILE
-		echo "$PATCH_BUILD_INSTALL"|grep -E -v 'make install$|make -f Makefile.bsd-wrapper build$' > $BUILD_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E 'KK=| cd /|make install$'|grep -v ' cd /usr/xenocara' > $INSTALL_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E ' cd /usr/xenocara|make -f Makefile.bsd-wrapper build$' > $XINSTALL_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E -v '^make install$' > $BUILD_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara' > $INSTALL_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$'|sed 's/build/install' > $XINSTALL_SCRIPT
 		time . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE
 		echo "$NEW_PATCHES" >> $PATCHLIST
 		cd
