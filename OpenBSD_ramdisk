@@ -24,7 +24,7 @@ FILE=$REPO/$REV.$ARCH.tar
     mkdir $RAMDISK/xobj
   }
   systemctl start nfs-kernel-server
-  exportfs -o fsid=0,rw,all_squash,anonuid=0,anongid=0 ${SSH_CLIENT%% *}:$RAMDISK
+  exportfs -o fsid=0,rw,all_squash,insecure,anonuid=0,anongid=0 ${SSH_CLIENT%% *}:$RAMDISK
   exit
 }
 [ "$CMD" = off ] && {
