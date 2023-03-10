@@ -103,7 +103,7 @@ f_usage() {
 }
 
 [ -z "$1" ] && f_usage
-while getopts "ip" opt; do
+while getopts "ipx" opt; do
 	case $opt in
 		p  ) f_patch_build;;
 		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
