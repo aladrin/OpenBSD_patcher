@@ -30,7 +30,7 @@ FILE=$REPO/$REV.$ARCH.tar
 [ "$CMD" = off ] && {
   exportfs -au
   systemctl stop nfs-kernel-server
-  rm $RAMDISK/src/*.patch.sig
+  rm -f $RAMDISK/src/*.patch.sig
   tar cpf $FILE $RAMDISK/* 2>/dev/null
   umount $RAMDISK
   sed -i "/^$AUTOMISC/d" /etc/auto.misc
