@@ -12,7 +12,7 @@ ssh $STAGE_HOST OpenBSD_ramdisk on $HOST $REV $ARCH $SIZE && {
   for i in $MOUNTS; do
     mount_nfs -T $STAGE_HOST:/misc/$(echo $i|sed "s/\/usr/$REV.$ARCH/") $i || { echo ${SCRIPT}: nfs mount of $i failed; exit 1; }
   done
-  $@
+  STAGE_HOST=$STAGE_HOST $@
   sleep 2
   for i in $MOUNTS; do
     umount $i
