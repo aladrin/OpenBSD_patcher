@@ -10,11 +10,11 @@ Install on a Linux host "nfshost" where you have enough ram for a 3GB ramdisk to
 
 Apply all patches
 ```
-       OpenBSD_stager nfshost OpenBSD_patcher -p
+OpenBSD_stager nfshost OpenBSD_patcher -p
 ```
 Build
 ```
-       OpenBSD_stager nfshost OpenBSD_patcher -b
+OpenBSD_stager nfshost OpenBSD_patcher -b
 ```
 Install
 ```
@@ -22,8 +22,8 @@ OpenBSD_stager nfshost OpenBSD_patcher -i
 ```
 Build xenocara (builds then installs)
 ```
-       OpenBSD_stager nfshost OpenBSD_patcher -x
+OpenBSD_stager nfshost OpenBSD_patcher -x
 ```
 Install xenocara (just installs)
 ```
-       OpenBSD_stager nfshost OpenBSD_patcher -X
+OpenBSD_stager nfshost OpenBSD_patcher -X
