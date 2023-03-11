@@ -27,3 +27,7 @@ OpenBSD_stager nfshost OpenBSD_patcher -x
 Install xenocara (just installs)
 ```
 OpenBSD_stager nfshost OpenBSD_patcher -X
+```
+Do everything
+```
+OpenBSD_stager nfshost OpenBSD_patcher -pbix
