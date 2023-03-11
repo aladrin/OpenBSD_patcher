@@ -6,10 +6,13 @@ Install on OpenBSD client. This pulls the source to the stage and assembles the 
 ### OpenBSD_ramdisk
 Install on a Linux host "nfshost" where you have enough ram for a 3GB ramdisk to serve over NFS. This has only been tested on Ubuntu.
 ```
-usage: To apply and build all patches
+usage: Apply all patches
        OpenBSD_stager nfshost OpenBSD_patcher -p
-       To install the sys and src patches
+       Build
+       OpenBSD_stager nfshost OpenBSD_patcher -b
+       Install
        OpenBSD_stager nfshost OpenBSD_patcher -i
-       To install the xenocara patches
+       Build xenocara
        OpenBSD_stager nfshost OpenBSD_patcher -x
-```
+       Install xenocara
+       OpenBSD_stager nfshost OpenBSD_patcher -X
