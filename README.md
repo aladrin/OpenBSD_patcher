@@ -1,4 +1,4 @@
-# An automated way to fetch and compile security patches to OpenBSD. Suitable for embedded devices, this solution uses a staged ramdisk mounted from a NFS server.
+### An automated way to fetch and compile security patches to OpenBSD. Suitable for embedded devices, this solution uses a staged ramdisk mounted from a NFS server.
 This is particularly useful for arches such as octeon that run on USB stick and do not have syspatches available.
 ### OpenBSD_stager
 Install on OpenBSD client. This is a wrapper that connects to a Linux host to create a 3GB ramdisk and serve over NFS. It then mounts this and OpenBSD_patcher command is run. Finally when completed, the stage is unmounted.
