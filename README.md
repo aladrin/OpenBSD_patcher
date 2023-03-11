@@ -8,6 +8,10 @@ Install on OpenBSD client. This pulls the source to the stage and assembles the 
 Install on a Linux host "nfshost" where you have enough ram for a 3GB ramdisk to serve over NFS. This has only been tested on Ubuntu.
 ### Run this on the OpenBSD machine you wish to patch:
 
+Do everything
+```
+OpenBSD_stager nfshost OpenBSD_patcher -pbix
+```
 Apply all patches
 ```
 OpenBSD_stager nfshost OpenBSD_patcher -p
@@ -27,7 +31,3 @@ OpenBSD_stager nfshost OpenBSD_patcher -x
 Install xenocara (just installs)
 ```
 OpenBSD_stager nfshost OpenBSD_patcher -X
-```
-Do everything
-```
-OpenBSD_stager nfshost OpenBSD_patcher -pbix
