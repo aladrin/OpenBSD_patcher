@@ -10,6 +10,7 @@ ERRFILE=/var/log/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
 BUILD_SCRIPT=/usr/src/$SCRIPT.build
+XBUILD_SCRIPT=/usr/src/$SCRIPT.xbuild
 INSTALL_SCRIPT=/usr/src/$SCRIPT.install
 XINSTALL_SCRIPT=/usr/src/$SCRIPT.xinstall
 REV=$(uname -r)
@@ -44,7 +45,7 @@ f_getsrc() {
 # Generate a script for patching and rebuilding /usr/src. #
 # Edit it. Run it. Send an email summary.                 #
 ###########################################################
-f_patch_build() {
+f_patch() {
 	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
 	cd /usr/src
 	touch $PATCHLIST
@@ -88,26 +89,30 @@ f_patch_build() {
 		echo "# $DATE_HUMAN" >> $ERRFILE
 		echo "$PATCH_BUILD_INSTALL"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper' > $BUILD_SCRIPT
 		echo "$PATCH_BUILD_INSTALL"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara' > $INSTALL_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper' > $XINSTALL_SCRIPT
-		time . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE
+		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper' > $XBUILD_SCRIPT
+		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$'|sed 's/build/install/' > $XINSTALL_SCRIPT
 		echo "$NEW_PATCHES" >> $PATCHLIST
 		cd
 	}
 }
 
 f_usage() {
-	echo "usage: $SCRIPT -p # patch and build"
-	echo "       $SCRIPT -i # install (run $INSTALL_SCRIPT)"
-	echo "       $SCRIPT -x # install (run $XINSTALL_SCRIPT)"
+	echo "usage: $SCRIPT -p # patch"
+	echo "       $SCRIPT -b # build"
+	echo "       $SCRIPT -i # install"
+	echo "       $SCRIPT -x # xbuild"
+	echo "       $SCRIPT -X # xinstall"
 	exit
 }
 
 [ -z "$1" ] && f_usage
-while getopts "ipx" opt; do
+while getopts "pbixX" opt; do
 	case $opt in
-		p  ) f_patch_build;;
+		p  ) f_patch;;
+		b  ) [ -f $BUILD_SCRIPT ] && . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
 		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
-		x  ) [ -f $XINSTALL_SCRIPT ] && . $XINSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
+		x  ) [ -f $XBUILD_SCRIPT ] && . $XBUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
+		X  ) [ -f $XINSTALL_SCRIPT ] && . $XINSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
 		\? ) f_usage;;
 		:  ) f_usage;;
 	esac
