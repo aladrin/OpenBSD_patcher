@@ -9,6 +9,8 @@ LOGFILE=/var/log/$SCRIPT.log
 ERRFILE=/var/log/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
+SCRIPT_DIR=/usr/src/$SCRIPT
+SPOOL_DIR=/usr/src/${SCRIPT}_spool
 BUILD_SCRIPT=/usr/src/$SCRIPT.build
 XBUILD_SCRIPT=/usr/src/$SCRIPT.xbuild
 INSTALL_SCRIPT=/usr/src/$SCRIPT.install
@@ -19,6 +21,7 @@ DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
 PATCHLIST=/usr/src/patches.list
 PATCHURL=http://ftp.openbsd.org/pub/OpenBSD/patches/${REV}.tar.gz
 STAGE_DIR=/misc/$(uname -r).$(uname -m)
+WORKERS=$(sysctl hw.ncpu|sed 's/.*=//')
 
 #####################
 # Get source code.  #
@@ -28,14 +31,22 @@ f_getsrc() {
 	local VER=$1;shift
 	for ARCHIVE in $@; do
 		echo $ARCHIVE|fgrep -q / && DIR="$(echo $ARCHIVE|awk -F/ '{print $1}')" || DIR=""
+		mkdir -p /usr/$DIR
 		cd /usr/$DIR
-		#ftp $DISTURL/${ARCHIVE##*/}.tar.gz || exit 1
                 echo Fetching $DISTURL/${ARCHIVE##*/}.tar.gz
-                ssh $STAGE_HOST curl $DISTURL/${ARCHIVE##*/}.tar.gz -o $STAGE_DIR/${ARCHIVE}.tar.gz
+		[ -z "$STAGE_HOST" ] && {
+			ftp $DISTURL/${ARCHIVE##*/}.tar.gz || exit 1
+		} || {
+                	ssh $STAGE_HOST curl $DISTURL/${ARCHIVE##*/}.tar.gz -o $STAGE_DIR/${ARCHIVE}.tar.gz
+		}
 		[ -f /usr/src/SHA256.sig ] || ( cd /usr/src;ftp $DISTURL/SHA256.sig )
 		signify -C -p /etc/signify/openbsd-$VER-base.pub -x /usr/src/SHA256.sig ${ARCHIVE##*/}.tar.gz || exit 1
                 echo Extracting ${ARCHIVE##*/}.tar.gz
-		ssh $STAGE_HOST tar xzf $STAGE_DIR/${ARCHIVE}.tar.gz -C $STAGE_DIR/$DIR
+		[ -z "$STAGE_HOST" ] && {
+			tar xzf ${ARCHIVE##*/}.tar.gz
+		} || {
+			ssh $STAGE_HOST tar xzf $STAGE_DIR/${ARCHIVE}.tar.gz -C $STAGE_DIR/$DIR
+		}
 		rm /usr/${ARCHIVE}.tar.gz
 		cd
 	done
@@ -64,36 +75,47 @@ f_patch() {
 		[ "$(echo $NEW_PATCHES)" = "" ] && { echo Blank update; exit 1; }
 		echo "$B64" | openssl enc -base64 -d | pax -r -z -s '/.*\///p' $NEW_PATCHES 2>/dev/null
 
-		###############################################################################################
-		# Extract patch and build commands from the comments in the *.sig patch files, then run them. #
-		###############################################################################################
-		PATCH_BUILD_INSTALL=$(cat <<-EOF
-			cd /usr/src
-			$(awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' *.patch.sig)
-			$(for PATCH in *.patch.sig; do
-				BUILDCMDS="$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|sed -e 's/^ *//' -e 's/ *$//')"
-				TAG=$(echo "$BUILDCMDS" | gzip -c | openssl enc -base64)
-				echo "$TAGS" | fgrep -q "$TAG" || {
-					TAGS=$(echo "$TAGS$TAG")
-					echo "$BUILDCMDS"
-				}
-			done)
-		EOF
-		)
-
-		####################
-		# Patch and build. #
-		# Log everything.  #
-		####################
-		echo "# $DATE_HUMAN" >> $LOGFILE
-		echo "# $DATE_HUMAN" >> $ERRFILE
-		echo "$PATCH_BUILD_INSTALL"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper' > $BUILD_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara' > $INSTALL_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper' > $XBUILD_SCRIPT
-		echo "$PATCH_BUILD_INSTALL"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$' > $XINSTALL_SCRIPT
-		echo "$NEW_PATCHES" >> $PATCHLIST
+		################################################################################
+		# Extract patch and build commands from the comments in the *.sig patch files. #
+		################################################################################
+		mkdir -p $SCRIPT_DIR $SPOOL_DIR
+		for PATCH in *.patch.sig; do
+			awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' $PATCH > $SCRIPT_DIR/${PATCH%%.*}.patch
+			S=$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|\
+                        	sed -e 's/^ *//' -e 's/ *$//')
+			BUILD=$(echo "$S"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
+			[ $(echo $BUILD | wc -c) -le 1 ] || echo "$BUILD" > $SCRIPT_DIR/${PATCH%%.*}.build
+			INSTALL=$(echo "$S"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara')
+			[ $(echo $INSTALL | wc -c) -le 1 ] || echo "$INSTALL" > $SCRIPT_DIR/${PATCH%%.*}.install
+			XBUILD=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
+			[ $(echo $XBUILD | wc -c) -le 1 ] || echo "$XBUILD" > $SCRIPT_DIR/${PATCH%%.*}.xbuild
+			XINSTALL=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$')
+			[ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
+		done
+		for PATCH in $SCRIPT_DIR/*.patch; do
+			echo $PATCH
+			. $PATCH
+		done
+		rm $SCRIPT_DIR/*.patch
 		cd
 	}
+}
+
+f_workers() {
+	cp $SCRIPT_DIR/*.$1 $SPOOL_DIR
+	for i in $(seq 1 $WORKERS); do
+		{
+			while ! [ "$(find $SPOOL_DIR -type f -name "*.$1"|wc -l)" = 0 ]; do
+				JOB=$(find $SPOOL_DIR -type f -name "*.$1"|head -1)
+				JOB_FILE=/tmp/${JOB##*/}
+				JOB_ERR=/var/log/${JOB##*/}.err
+				JOB_LOG=/var/log/${JOB##*/}.log
+				[ "$JOB" != "" ] && mv $JOB /tmp 2>/dev/null && . $JOB_FILE 2>> $JOB_ERR 1>> $JOB_LOG
+				rm /tmp/${JOB##*/}
+			done
+		} &
+	done
+	wait
 }
 
 f_usage() {
@@ -109,10 +131,10 @@ f_usage() {
 while getopts "pbixX" opt; do
 	case $opt in
 		p  ) f_patch;;
-		b  ) [ -f $BUILD_SCRIPT ] && . $BUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
-		i  ) [ -f $INSTALL_SCRIPT ] && . $INSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
-		x  ) [ -f $XBUILD_SCRIPT ] && . $XBUILD_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
-		X  ) [ -f $XINSTALL_SCRIPT ] && . $XINSTALL_SCRIPT 2>> $ERRFILE 1>> $LOGFILE ;;
+		b  ) f_workers build;;
+		i  ) f_workers install;;
+		x  ) f_workers xbuild;;
+		X  ) f_workers xinstall;;
 		\? ) f_usage;;
 		:  ) f_usage;;
 	esac
