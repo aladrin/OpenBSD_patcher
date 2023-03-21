@@ -93,8 +93,7 @@ f_patch() {
 			[ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
 		done
 		for PATCH in $SCRIPT_DIR/*.patch; do
-			echo $PATCH
-			. $PATCH
+			. $PATCH 2>> $ERRFILE 1>> $LOGFILE
 		done
 		rm $SCRIPT_DIR/*.patch
 		cd
@@ -102,7 +101,10 @@ f_patch() {
 }
 
 f_workers() {
-	cp $SCRIPT_DIR/*.$1 $SPOOL_DIR
+	for i in $SCRIPT_DIR/*.$1; do
+		HASH=$(cat $i|sha512)
+		[ ! -f $SPOOL_DIR/$HASH.$1 ] && cp $i $SPOOL_DIR/$HASH.$1
+	done
 	for i in $(seq 1 $WORKERS); do
 		{
 			while ! [ "$(find $SPOOL_DIR -type f -name "*.$1"|wc -l)" = 0 ]; do
@@ -110,7 +112,7 @@ f_workers() {
 				JOB_FILE=/tmp/${JOB##*/}
 				JOB_ERR=/var/log/${JOB##*/}.err
 				JOB_LOG=/var/log/${JOB##*/}.log
-				[ "$JOB" != "" ] && mv $JOB /tmp 2>/dev/null && . $JOB_FILE 2>> $JOB_ERR 1>> $JOB_LOG
+				[ -f "$JOB" ] && mv $JOB /tmp 2>/dev/null && . $JOB_FILE 2>> $JOB_ERR 1>> $JOB_LOG
 				rm /tmp/${JOB##*/}
 			done
 		} &
