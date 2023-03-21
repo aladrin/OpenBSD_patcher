@@ -11,10 +11,6 @@ DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
 SCRIPT_DIR=/usr/src/$SCRIPT
 SPOOL_DIR=/usr/src/${SCRIPT}_spool
-BUILD_SCRIPT=/usr/src/$SCRIPT.build
-XBUILD_SCRIPT=/usr/src/$SCRIPT.xbuild
-INSTALL_SCRIPT=/usr/src/$SCRIPT.install
-XINSTALL_SCRIPT=/usr/src/$SCRIPT.xinstall
 REV=$(uname -r)
 VER=$(IFS=.;for i in $REV; do echo -n $i;done;unset IFS)
 DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
@@ -117,7 +113,6 @@ f_workers() {
 			done
 		} &
 	done
-	wait
 }
 
 f_usage() {
