@@ -99,7 +99,7 @@ f_patch() {
 f_workers() {
 	for i in $SCRIPT_DIR/*.$1; do
 		HASH=$(cat $i|sha512)
-		[ ! -f $SPOOL_DIR/$HASH.$1 ] && cp $i $SPOOL_DIR/$HASH.$1
+		[ ! -f $SPOOL_DIR/$HASH.$1 ] && echo cp $i $SPOOL_DIR/$HASH.$1
 	done
 	for i in $(seq 1 $WORKERS); do
 		{
