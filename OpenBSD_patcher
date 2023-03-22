@@ -8,8 +8,8 @@ RCFILE=~/.${SCRIPT}.rc
 TMPDIR=/tmp
 LOGDIR=/var/log/$SCRIPT
 mkdir -p $LOGDIR
-LOGFILE=/var/log/$LOGDIR/$SCRIPT.log
-ERRFILE=/var/log/$LOGDIR/$SCRIPT.err
+LOGFILE=$LOGDIR/$SCRIPT.log
+ERRFILE=$LOGDIR/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
 SCRIPT_DIR=/usr/src/$SCRIPT
