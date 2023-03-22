@@ -5,8 +5,11 @@
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
 [ -f $RCFILE ] && . $RCFILE || { echo ${SCRIPT}: $RCFILE missing; exit 1; }
-LOGFILE=/var/log/$SCRIPT.log
-ERRFILE=/var/log/$SCRIPT.err
+TMPDIR=/tmp
+LOGDIR=/var/log/$SCRIPT
+mkdir -p $LOGDIR
+LOGFILE=/var/log/$LOGDIR/$SCRIPT.log
+ERRFILE=/var/log/$LOGDIR/$SCRIPT.err
 DATE=$(date +%Y%m%d%S)
 DATE_HUMAN=$(date)
 SCRIPT_DIR=/usr/src/$SCRIPT
@@ -103,10 +106,10 @@ f_workers() {
 	done
 	for i in $(seq 1 $WORKERS); do
 		{
-			while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) /tmp 2>/dev/null); do
+			while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $TMPDIR 2>/dev/null); do
 				JOB=${i##*/}
-				. /tmp/$JOB 2>> /var/log/$JOB.err 1>> /var/log/$JOB.log
-				rm /tmp/$JOB
+				. $TMPDIR/$JOB 2>> $LOGDIR/$JOB.err 1>> $LOGDIR/$JOB.log
+				rm $TMPDIR/$JOB
 			done
 		} &
 	done
