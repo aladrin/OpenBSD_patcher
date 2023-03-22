@@ -104,12 +104,9 @@ f_workers() {
 	for i in $(seq 1 $WORKERS); do
 		{
 			while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) /tmp 2>/dev/null); do
-				echo SPOOL_DIR $SPOOL_DIR 1 $1 i $i
 				JOB=${i##*/}
-				#. /tmp/$JOB 2>> /var/log/$JOB.err 1>> /var/log/$JOB.log
-				echo /tmp/$JOB
-				cat /tmp/$JOB
-				#rm /tmp/$JOB
+				. /tmp/$JOB 2>> /var/log/$JOB.err 1>> /var/log/$JOB.log
+				rm /tmp/$JOB
 			done
 		} &
 	done
