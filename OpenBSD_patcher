@@ -103,13 +103,10 @@ f_workers() {
 	done
 	for i in $(seq 1 $WORKERS); do
 		{
-			while ! [ "$(find $SPOOL_DIR -type f -name "*.$1"|wc -l)" = 0 ]; do
-				JOB=$(find $SPOOL_DIR -type f -name "*.$1"|head -1)
-				JOB_FILE=/tmp/${JOB##*/}
-				JOB_ERR=/var/log/${JOB##*/}.err
-				JOB_LOG=/var/log/${JOB##*/}.log
-				[ -f "$JOB" ] && mv $JOB /tmp 2>/dev/null && . $JOB_FILE 2>> $JOB_ERR 1>> $JOB_LOG
-				rm /tmp/${JOB##*/}
+			while i=$(mv $(find $SPOOL_DIR -type f -name "*.$1"|head -1) /tmp 2>/dev/null); do
+				JOB=${i##*/}
+				. /tmp/$JOB 2>> /var/log/$JOB.err 1>> /var/log/$JOB.log
+				rm /tmp/$JOB
 			done
 		} &
 	done
