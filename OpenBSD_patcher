@@ -112,6 +112,7 @@ f_workers() {
         rm $TMPDIR/$JOB
       done
     } &
+    sleep 1
   done
   wait
 }
