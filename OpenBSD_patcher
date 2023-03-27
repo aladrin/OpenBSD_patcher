@@ -20,7 +20,7 @@ DISTURL=https://$DISTHOST/pub/OpenBSD/$REV
 PATCHLIST=/usr/src/patches.list
 PATCHURL=http://ftp.openbsd.org/pub/OpenBSD/patches/${REV}.tar.gz
 STAGE_DIR=/misc/$(uname -r).$(uname -m)
-WORKERS=$(sysctl hw.ncpu|sed 's/.*=//')
+[ -z "$WORKERS" ] && WORKERS=$(sysctl hw.ncpu|sed 's/.*=//')
 
 #####################
 # Get source code.  #
