@@ -27,28 +27,28 @@ WORKERS=$(sysctl hw.ncpu|sed 's/.*=//')
 # Verify signature. #
 #####################
 f_getsrc() {
-	local VER=$1;shift
-	for ARCHIVE in $@; do
-		echo $ARCHIVE|fgrep -q / && DIR="$(echo $ARCHIVE|awk -F/ '{print $1}')" || DIR=""
-		mkdir -p /usr/$DIR
-		cd /usr/$DIR
+  local VER=$1;shift
+  for ARCHIVE in $@; do
+    echo $ARCHIVE|fgrep -q / && DIR="$(echo $ARCHIVE|awk -F/ '{print $1}')" || DIR=""
+    mkdir -p /usr/$DIR
+    cd /usr/$DIR
                 echo Fetching $DISTURL/${ARCHIVE##*/}.tar.gz
-		[ -z "$STAGE_HOST" ] && {
-			ftp $DISTURL/${ARCHIVE##*/}.tar.gz || exit 1
-		} || {
-                	ssh $STAGE_HOST curl $DISTURL/${ARCHIVE##*/}.tar.gz -o $STAGE_DIR/${ARCHIVE}.tar.gz
-		}
-		[ -f /usr/src/SHA256.sig ] || ( cd /usr/src;ftp $DISTURL/SHA256.sig )
-		signify -C -p /etc/signify/openbsd-$VER-base.pub -x /usr/src/SHA256.sig ${ARCHIVE##*/}.tar.gz || exit 1
+    [ -z "$STAGE_HOST" ] && {
+      ftp $DISTURL/${ARCHIVE##*/}.tar.gz || exit 1
+    } || {
+                  ssh $STAGE_HOST curl $DISTURL/${ARCHIVE##*/}.tar.gz -o $STAGE_DIR/${ARCHIVE}.tar.gz
+    }
+    [ -f /usr/src/SHA256.sig ] || ( cd /usr/src;ftp $DISTURL/SHA256.sig )
+    signify -C -p /etc/signify/openbsd-$VER-base.pub -x /usr/src/SHA256.sig ${ARCHIVE##*/}.tar.gz || exit 1
                 echo Extracting ${ARCHIVE##*/}.tar.gz
-		[ -z "$STAGE_HOST" ] && {
-			tar xzf ${ARCHIVE##*/}.tar.gz
-		} || {
-			ssh $STAGE_HOST tar xzf $STAGE_DIR/${ARCHIVE}.tar.gz -C $STAGE_DIR/$DIR
-		}
-		rm /usr/${ARCHIVE}.tar.gz
-		cd
-	done
+    [ -z "$STAGE_HOST" ] && {
+      tar xzf ${ARCHIVE##*/}.tar.gz
+    } || {
+      ssh $STAGE_HOST tar xzf $STAGE_DIR/${ARCHIVE}.tar.gz -C $STAGE_DIR/$DIR
+    }
+    rm /usr/${ARCHIVE}.tar.gz
+    cd
+  done
 }
 
 ###########################################################
@@ -56,84 +56,84 @@ f_getsrc() {
 # Edit it. Run it. Send an email summary.                 #
 ###########################################################
 f_patch() {
-	[ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
-	cd /usr/src
-	touch $PATCHLIST
+  [ -f /usr/src/SHA256.sig ] || { rm -rf /usr/src/* /usr/xenocara/* /usr/obj/* /usr/xobj/*; f_getsrc $VER src/src src/sys xenocara/xenocara; }
+  cd /usr/src
+  touch $PATCHLIST
 
-	#######################################################################################
-	# Grab the latest patches tar ball in base64 format for usability within this script. #
-	#######################################################################################
-	B64="$(ftp -V -o - $PATCHURL | openssl enc -base64)"
-	PATCHES="$(echo "$B64" | openssl enc -base64 -d | tar tzf - | fgrep .sig | sort -n)"
+  #######################################################################################
+  # Grab the latest patches tar ball in base64 format for usability within this script. #
+  #######################################################################################
+  B64="$(ftp -V -o - $PATCHURL | openssl enc -base64)"
+  PATCHES="$(echo "$B64" | openssl enc -base64 -d | tar tzf - | fgrep .sig | sort -n)"
 
-	###########################################################
-	# If there are any new patches, extract them in /usr/src. #
-	###########################################################
-	[ "$PATCHES" = "$(< $PATCHLIST)" ] || {
-		NEW_PATCHES="$(echo "$PATCHES" | fgrep -vx -f $PATCHLIST)"
-		[ "$(echo $NEW_PATCHES)" = "" ] && { echo Blank update; exit 1; }
-		echo "$B64" | openssl enc -base64 -d | pax -r -z -s '/.*\///p' $NEW_PATCHES 2>/dev/null
+  ###########################################################
+  # If there are any new patches, extract them in /usr/src. #
+  ###########################################################
+  [ "$PATCHES" = "$(< $PATCHLIST)" ] || {
+    NEW_PATCHES="$(echo "$PATCHES" | fgrep -vx -f $PATCHLIST)"
+    [ "$(echo $NEW_PATCHES)" = "" ] && { echo Blank update; exit 1; }
+    echo "$B64" | openssl enc -base64 -d | pax -r -z -s '/.*\///p' $NEW_PATCHES 2>/dev/null
 
-		################################################################################
-		# Extract patch and build commands from the comments in the *.sig patch files. #
-		################################################################################
-		mkdir -p $SCRIPT_DIR $SPOOL_DIR
-		for PATCH in *.patch.sig; do
-			awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' $PATCH > $SCRIPT_DIR/${PATCH%%.*}.patch
-			S=$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|\
-                        	sed -e 's/^ *//' -e 's/ *$//')
-			BUILD=$(echo "$S"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
-			[ $(echo $BUILD | wc -c) -le 1 ] || echo "$BUILD" > $SCRIPT_DIR/${PATCH%%.*}.build
-			INSTALL=$(echo "$S"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara')
-			[ $(echo $INSTALL | wc -c) -le 1 ] || echo "$INSTALL" > $SCRIPT_DIR/${PATCH%%.*}.install
-			XBUILD=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
-			[ $(echo $XBUILD | wc -c) -le 1 ] || echo "$XBUILD" > $SCRIPT_DIR/${PATCH%%.*}.xbuild
-			XINSTALL=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$')
-			[ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
-		done
-		for PATCH in $SCRIPT_DIR/*.patch; do
-			. $PATCH 2>> $ERRFILE 1>> $LOGFILE
-		done
-		rm $SCRIPT_DIR/*.patch
-		cd
-	}
+    ################################################################################
+    # Extract patch and build commands from the comments in the *.sig patch files. #
+    ################################################################################
+    mkdir -p $SCRIPT_DIR $SPOOL_DIR
+    for PATCH in *.patch.sig; do
+      awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' $PATCH > $SCRIPT_DIR/${PATCH%%.*}.patch
+      S=$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|\
+                          sed -e 's/^ *//' -e 's/ *$//')
+      BUILD=$(echo "$S"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
+      [ $(echo $BUILD | wc -c) -le 1 ] || echo "$BUILD" > $SCRIPT_DIR/${PATCH%%.*}.build
+      INSTALL=$(echo "$S"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara')
+      [ $(echo $INSTALL | wc -c) -le 1 ] || echo "$INSTALL" > $SCRIPT_DIR/${PATCH%%.*}.install
+      XBUILD=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
+      [ $(echo $XBUILD | wc -c) -le 1 ] || echo "$XBUILD" > $SCRIPT_DIR/${PATCH%%.*}.xbuild
+      XINSTALL=$(echo "$S"|grep -E '^cd /usr/xenocara|^make -f Makefile.bsd-wrapper build$')
+      [ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
+    done
+    for PATCH in $SCRIPT_DIR/*.patch; do
+      . $PATCH 2>> $ERRFILE 1>> $LOGFILE
+    done
+    rm $SCRIPT_DIR/*.patch
+    cd
+  }
 }
 
 f_workers() {
-	for i in $SCRIPT_DIR/*.$1; do
-		HASH=$(cat $i|md5)
-		[ ! -f $SPOOL_DIR/$HASH.$1 ] && cp $i $SPOOL_DIR/$HASH.$1
-	done
-	for i in $(seq 1 $WORKERS); do
-		{
-			while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $TMPDIR 2>/dev/null); do
-				JOB=${i##*/}
-				. $TMPDIR/$JOB 2>> $LOGDIR/$JOB.err 1>> $LOGDIR/$JOB.log
-				rm $TMPDIR/$JOB
-			done
-		} &
-	done
-	wait
+  for i in $SCRIPT_DIR/*.$1; do
+    HASH=$(cat $i|md5)
+    [ ! -f $SPOOL_DIR/$HASH.$1 ] && cp $i $SPOOL_DIR/$HASH.$1
+  done
+  for i in $(seq 1 $WORKERS); do
+    {
+      while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $TMPDIR 2>/dev/null); do
+        JOB=${i##*/}
+        . $TMPDIR/$JOB 2>> $LOGDIR/$JOB.err 1>> $LOGDIR/$JOB.log
+        rm $TMPDIR/$JOB
+      done
+    } &
+  done
+  wait
 }
 
 f_usage() {
-	echo "usage: $SCRIPT -p # patch"
-	echo "       $SCRIPT -b # build"
-	echo "       $SCRIPT -i # install"
-	echo "       $SCRIPT -x # xbuild"
-	echo "       $SCRIPT -X # xinstall"
-	exit
+  echo "usage: $SCRIPT -p # patch"
+  echo "       $SCRIPT -b # build"
+  echo "       $SCRIPT -i # install"
+  echo "       $SCRIPT -x # xbuild"
+  echo "       $SCRIPT -X # xinstall"
+  exit
 }
 
 [ -z "$1" ] && f_usage
 while getopts "pbixX" opt; do
-	case $opt in
-		p  ) f_patch;;
-		b  ) f_workers build;;
-		i  ) f_workers install;;
-		x  ) f_workers xbuild;;
-		X  ) f_workers xinstall;;
-		\? ) f_usage;;
-		:  ) f_usage;;
-	esac
+  case $opt in
+    p  ) f_patch;;
+    b  ) f_workers build;;
+    i  ) f_workers install;;
+    x  ) f_workers xbuild;;
+    X  ) f_workers xinstall;;
+    \? ) f_usage;;
+    :  ) f_usage;;
+  esac
 done
