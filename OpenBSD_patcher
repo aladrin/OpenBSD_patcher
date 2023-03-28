@@ -88,7 +88,7 @@ f_patch() {
       [ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
     done
     for PATCH in $SCRIPT_DIR/*.patch; do
-      . $PATCH 2>> $ERRFILE 1>> $LOGFILE
+      . $PATCH | logger -p local0.notice -t $SCRIPT
     done
     rm $SCRIPT_DIR/*.patch
     cd
