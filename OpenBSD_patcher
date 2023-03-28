@@ -88,7 +88,7 @@ f_patch() {
       [ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
     done
     for PATCH in $SCRIPT_DIR/*.patch; do
-      . $PATCH | logger -p local0.notice -t $SCRIPT
+      . $PATCH 2>&1 1>/dev/null | logger -p local0.notice -t $SCRIPT
     done
     rm $SCRIPT_DIR/*.patch
     cd
@@ -106,7 +106,7 @@ f_workers() {
     {
       while j=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $JOBDIR 2>/dev/null); do
         JOB=${j##*/}
-	. $JOBDIR/$JOB | logger -p local0.notice -t "$SCRIPT ($i)"
+	. $JOBDIR/$JOB 2>&1 1>/dev/null | logger -p local0.notice -t "$SCRIPT ($i)"
         rm $JOBDIR/$JOB
       done
     } &
