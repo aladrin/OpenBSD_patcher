@@ -106,7 +106,7 @@ f_workers() {
     {
       while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $JOBDIR 2>/dev/null); do
         JOB=${i##*/}
-        . $JOBDIR/$JOB 2> >(logger -p local0.err -t $SCRIPT) | logger -p local0.notice -t $SCRIPT
+        . $JOBDIR/$JOB | logger -p local0.notice -t $SCRIPT
         rm $JOBDIR/$JOB
       done
     } &
