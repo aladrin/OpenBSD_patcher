@@ -104,9 +104,9 @@ f_workers() {
     JOBDIR=$TMPDIR/$i
     mkdir -p $JOBDIR
     {
-      while i=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $JOBDIR 2>/dev/null); do
-        JOB=${i##*/}
-        . $JOBDIR/$JOB | logger -p local0.notice -t $SCRIPT
+      while j=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $JOBDIR 2>/dev/null); do
+        JOB=${j##*/}
+	. $JOBDIR/$JOB | logger -p local0.notice -t "$SCRIPT ($i)"
         rm $JOBDIR/$JOB
       done
     } &
