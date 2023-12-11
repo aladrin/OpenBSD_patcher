@@ -113,7 +113,6 @@ f_workers() {
     sleep 1
   done
   wait
-  echo "$NEW_PATCHES" >> $PATCHLIST
 }
 
 f_usage() {
@@ -137,3 +136,4 @@ while getopts "pbixX" opt; do
     :  ) f_usage;;
   esac
 done
+echo "$NEW_PATCHES" >> $PATCHLIST
