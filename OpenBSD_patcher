@@ -113,6 +113,7 @@ f_workers() {
     sleep 1
   done
   wait
+  echo "$NEW_PATCHES" >> $PATCHLIST
 }
 
 f_usage() {
