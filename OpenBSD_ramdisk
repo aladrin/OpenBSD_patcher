@@ -2,21 +2,40 @@
 SCRIPT=${0##*/}
 RCFILE=~/.${SCRIPT}.rc
 [ -f $RCFILE ] && . $RCFILE
-[ $# = 5 ] || { echo ${SCRIPT}: 5 args must be supplied; exit 1; }
+
 CMD=$1
+
+[ "$CMD" = "clean" ] && {
+  exportfs -ua
+  exportfs -a
+  sed -i '/-fstype=tmpfs/d' /etc/auto.misc
+  systemctl restart autofs
+  for mnt in $(awk '$2 ~ /^\/misc\// && $3 == "tmpfs" {print $2}' /proc/mounts); do
+    for i in {1..5}; do
+      umount "$mnt" 2>/dev/null && break
+      sleep 2
+    done
+  done
+  [ -n "$START_CMDS" ] && $START_CMDS
+  exit 0
+}
+
+[ $# = 5 ] || { echo "${SCRIPT}: 5 args must be supplied for $CMD"; exit 1; }
+
 HOST=$2
 REV=$3
 ARCH=$4
 SIZE=$5
-SIZE=${SIZE:=3072}
+SIZE=${SIZE:=4096}
 AUTOMISC="$REV.$ARCH -fstype=tmpfs,rw,size=${SIZE}m :tmpfs"
 RAMDISK=/misc/$REV.$ARCH
 REPO=${REPO:=/home/ramdisk}
 [ -d "$REPO" ] || mkdir -p "$REPO"
 FILE=$REPO/$REV.$ARCH.tar
+
 [ "$CMD" = on ] && {
   [ -n "$STOP_CMDS" ] && $STOP_CMDS
-  egrep -q "^${AUTOMISC}$" /etc/auto.misc || { echo $AUTOMISC >> /etc/auto.misc; systemctl restart autofs; }
+  egrep -q "^${AUTOMISC}$" /etc/auto.misc || { echo "$AUTOMISC" >> /etc/auto.misc; systemctl restart autofs; }
   [ -f $FILE ] && tar xpf $FILE -C / || {
     mkdir $RAMDISK/src
     mkdir $RAMDISK/obj
@@ -24,23 +43,30 @@ FILE=$REPO/$REV.$ARCH.tar
     mkdir $RAMDISK/xobj
   }
   systemctl start nfs-kernel-server
-  exportfs -o fsid=0,rw,all_squash,insecure,anonuid=0,anongid=0 ${SSH_CLIENT%% *}:$RAMDISK
-  exit
+  exportfs -o fsid=0,rw,async,no_subtree_check,all_squash,insecure,anonuid=0,anongid=0 ${SSH_CLIENT%% *}:$RAMDISK
+  exit 0
 }
+
 [ "$CMD" = off ] && {
-  exportfs -au
-  systemctl stop nfs-kernel-server
+  exportfs -u ${SSH_CLIENT%% *}:$RAMDISK
   rm -f $RAMDISK/src/*.patch.sig
   tar cpf $FILE $RAMDISK/* 2>/dev/null
-  umount $RAMDISK
+  for i in {1..5}; do
+    umount $RAMDISK 2>/dev/null && break
+    sleep 2
+  done
   sed -i "/^$AUTOMISC/d" /etc/auto.misc
   [ -n "$START_CMDS" ] && $START_CMDS
-  exit
+  exit 0
 }
+
 [ "$CMD" = rm ] && {
-  exportfs -au
-  systemctl stop nfs-kernel-server
-  umount $RAMDISK
+  exportfs -u ${SSH_CLIENT%% *}:$RAMDISK
+  for i in {1..5}; do
+    umount $RAMDISK 2>/dev/null && break
+    sleep 2
+  done
   sed -i "/^$AUTOMISC/d" /etc/auto.misc
   [ -n "$START_CMDS" ] && $START_CMDS
+  exit 0
 }

@@ -76,8 +76,7 @@ f_patch() {
     mkdir -p $SCRIPT_DIR $SPOOL_DIR
     for PATCH in *.patch.sig; do
       awk 'sub(/^Apply by doing:/,""){f=1} /^And then/{f=0}f' $PATCH > $SCRIPT_DIR/${PATCH%%.*}.patch
-      S=$(awk '/^And then/{f=1;next}/^Index:/{f=0}f' $PATCH|\
-                          sed -e 's/^ *//' -e 's/ *$//')
+      S=$(awk '/^And then/ {f=1; next} /^Index:/ {f=0} f && /^[ \t]+/ {print}' $PATCH)
       BUILD=$(echo "$S"|grep -E -v '^make install$|^cd /usr/xenocara|^make -f Makefile.bsd-wrapper')
       [ $(echo $BUILD | wc -c) -le 1 ] || echo "$BUILD" > $SCRIPT_DIR/${PATCH%%.*}.build
       INSTALL=$(echo "$S"|grep -E '^KK=|^cd /|^make install$'|grep -E -v '^cd /usr/xenocara')
@@ -88,7 +87,7 @@ f_patch() {
       [ $(echo $XINSTALL | wc -c) -le 1 ] || echo "$XINSTALL" > $SCRIPT_DIR/${PATCH%%.*}.xinstall
     done
     for PATCH in $SCRIPT_DIR/*.patch; do
-      . $PATCH 2>&1 1>/dev/null | logger -p local0.notice -t $SCRIPT
+      . $PATCH 2>&1 | logger -p local3.info -t compiler -i
     done
     rm $SCRIPT_DIR/*.patch
     cd
@@ -106,7 +105,8 @@ f_workers() {
     {
       while j=$(mv -v $(find $SPOOL_DIR -type f -name "*.$1"|head -1) $JOBDIR 2>/dev/null); do
         JOB=${j##*/}
-	. $JOBDIR/$JOB 2>&1 1>/dev/null | logger -p local0.notice -t "$SCRIPT ($i)"
+        cat $JOBDIR/$JOB | logger -p local3.info -t compiler -i
+	. $JOBDIR/$JOB 2>&1 | logger -p local3.info -t compiler -i
         rm $JOBDIR/$JOB
       done
     } &
